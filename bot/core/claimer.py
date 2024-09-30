@@ -92,7 +92,7 @@ class Claimer:
 			response.raise_for_status()
 			
 			response_json = await response.json()
-			mining_data = response_json['user']
+			mining_data = response_json
 
 			return mining_data
 		except Exception as error:
@@ -194,6 +194,62 @@ class Claimer:
 			logger.error(f"{self.session_name} | Error during game play: {error}")
 			return
 
+	async def daily_reward(self, http_client: aiohttp.ClientSession) -> None:
+		try:
+			response = await http_client.post('https://tonclayton.fun/api/user/daily-claim')
+			response.raise_for_status()
+			
+			response_json = await response.json()
+			tokens = response_json['tokens']
+			logger.success(f"{self.session_name} | Daily reward claimed (+{tokens} tokens)")
+		except Exception as error:
+			logger.error(f"{self.session_name} | Unknown error in daily reward: {error}")
+			await asyncio.sleep(delay=3)
+	
+	async def perform_tasks(self, http_client: aiohttp.ClientSession) -> None:
+		task_urls = ['https://tonclayton.fun/api/tasks/super-tasks', 'https://tonclayton.fun/api/tasks/partner-tasks', 'https://tonclayton.fun/api/user/okx/tickets', 'https://tonclayton.fun/api/tasks/daily-tasks', 'https://tonclayton.fun/api/tasks/default-tasks']
+		url_check = 'https://tonclayton.fun/api/tasks/check'
+		url_complete = 'https://tonclayton.fun/api/tasks/complete'
+		url_claim = 'https://tonclayton.fun/api/tasks/claim'
+		try:
+			for url in task_urls:
+				response = await http_client.get(url)
+				response.raise_for_status()
+				response_json = await response.json()
+				if 'okx/tickets' in url: continue
+				for task in response_json:
+					if task['is_claimed']: continue
+					logger.info(f"{self.session_name} | Processing task {task['task_id']}...")
+					if task['task']['requires_check']:
+						payload = {"task_id": task['task_id']}
+						response2 = await http_client.post(url_check, json=payload)
+						response2.raise_for_status()
+						response2_json = await response2.json()
+						if response2_json['is_completed']:
+							payload = {"task_id": task['task_id']}
+							response2 = await http_client.post(url_claim, json=payload)
+							response2.raise_for_status()
+							response2_json = await response2.json()
+							if response2_json['reward_tokens']:
+								logger.success(f"{self.session_name} | Task {task['task_id']} completed (+{response2_json['reward_tokens']} tokens)")
+						else:
+							payload = {"task_id": task['task_id']}
+							response2 = await http_client.post(url_complete, json=payload)
+							response2.raise_for_status()
+							response2_json = await response2.json()
+							if response2_json.get('message', False) and 'completed' in response2_json['message']:
+								payload = {"task_id": task['task_id']}
+								response2 = await http_client.post(url_claim, json=payload)
+								response2.raise_for_status()
+								response2_json = await response2.json()
+								if response2_json['reward_tokens']:
+									logger.success(f"{self.session_name} | Task {task['task_id']} completed (+{response2_json['reward_tokens']} tokens)")
+						await asyncio.sleep(random.randint(12, 24))
+				await asyncio.sleep(random.randint(24, 48))
+		except Exception as error:
+			logger.error(f"{self.session_name} | Unknown error in daily reward: {error}")
+			await asyncio.sleep(delay=3)
+
 	async def run(self, proxy: str | None) -> None:
 		access_token_created_time = 0
 		claim_time = 0
@@ -210,28 +266,39 @@ class Claimer:
 						access_token_created_time = time()
 
 					mining_data = await self.get_mining_data(http_client=http_client)
-
-					# Log current status
-					logger.info(f"{self.session_name} | Balance: {int(mining_data['tokens'])} | "
-								f"Available to claim: {mining_data['storage']} | "
-								f"Multiplier: {mining_data['multiplier']}")
-					
+					tokens = int(mining_data['user']['tokens'])
+					multiplier = mining_data['user']['multiplier']
+					daily_attempts = mining_data['user']['daily_attempts']
+					need_daily_claim = mining_data['dailyReward']['can_claim_today']
 					#active_farm = mining_data['active_farm']
-					daily_attempts = mining_data['daily_attempts']
 					#start_time = parser.parse(mining_data['start_time'])
 					#start_time = start_time.astimezone(timezone.utc)
 					#current_time = datetime.now(timezone.utc)
-
+					
+					# Log current status
+					logger.info(f"{self.session_name} | Balance: {tokens} | "
+								f"Multiplier: {multiplier}")
+					
 					await asyncio.sleep(random.randint(2, 4))
+					if need_daily_claim:
+						logger.info(f"{self.session_name} | Daily reward available")
+						await self.daily_reward(http_client=http_client)
+					else:
+						logger.info(f"{self.session_name} | Daily reward not available")
+					
+					await asyncio.sleep(random.randint(4, 8))
+					await self.perform_tasks(http_client=http_client)
+
+					await asyncio.sleep(random.randint(4, 8))
 					if daily_attempts > 0:
 						logger.info(f"{self.session_name} | Game attempts remaining: {daily_attempts}")
 						games = ['1024', 'Stack']
 						while daily_attempts > 0:
 							game = random.choice(games)
 							if game == '1024':
-								await self.perform_game(http_client=http_client, multiplier=mining_data['multiplier'])
+								await self.perform_game(http_client=http_client, multiplier=multiplier)
 							else:
-								await self.perform_stack(http_client=http_client, multiplier=mining_data['multiplier'])
+								await self.perform_stack(http_client=http_client, multiplier=multiplier)
 							daily_attempts -= 1
 							await asyncio.sleep(random.randint(10, 15))  # Sleep between games
 						continue
@@ -259,12 +326,7 @@ class Claimer:
 							logger.success(f"{self.session_name} | Claim successful.")
 						if await self.start_farming(http_client=http_client):
 							logger.success(f"{self.session_name} | Farming restarted successfully.")'''
-
-					# Log current status
-					logger.info(f"{self.session_name} | Balance: {int(mining_data['tokens'])} | "
-								f"Available to claim: {mining_data['storage']} | "
-								f"Multiplier: {mining_data['multiplier']}")
-					
+				
 				except InvalidSession as error:
 					raise error
 				except Exception as error:
