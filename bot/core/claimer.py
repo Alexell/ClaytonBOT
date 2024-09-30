@@ -216,11 +216,11 @@ class Claimer:
 								f"Available to claim: {mining_data['storage']} | "
 								f"Multiplier: {mining_data['multiplier']}")
 					
-					active_farm = mining_data['active_farm']
+					#active_farm = mining_data['active_farm']
 					daily_attempts = mining_data['daily_attempts']
-					start_time = parser.parse(mining_data['start_time'])
-					start_time = start_time.astimezone(timezone.utc)
-					current_time = datetime.now(timezone.utc)
+					#start_time = parser.parse(mining_data['start_time'])
+					#start_time = start_time.astimezone(timezone.utc)
+					#current_time = datetime.now(timezone.utc)
 
 					await asyncio.sleep(random.randint(2, 4))
 					if daily_attempts > 0:
@@ -236,7 +236,7 @@ class Claimer:
 							await asyncio.sleep(random.randint(10, 15))  # Sleep between games
 						continue
 					
-					await asyncio.sleep(random.randint(2, 4))
+					'''await asyncio.sleep(random.randint(2, 4))
 					if not active_farm:
 						logger.info(f"{self.session_name} | Farm not active. Claiming and starting farming.")
 						if await self.send_claim(http_client=http_client):
@@ -258,7 +258,7 @@ class Claimer:
 						if await self.send_claim(http_client=http_client):
 							logger.success(f"{self.session_name} | Claim successful.")
 						if await self.start_farming(http_client=http_client):
-							logger.success(f"{self.session_name} | Farming restarted successfully.")
+							logger.success(f"{self.session_name} | Farming restarted successfully.")'''
 
 					# Log current status
 					logger.info(f"{self.session_name} | Balance: {int(mining_data['tokens'])} | "
@@ -271,8 +271,12 @@ class Claimer:
 					logger.error(f"{self.session_name} | Unknown error: {error}")
 					await asyncio.sleep(delay=3)
 				else:
-					logger.info(f"Sleep 1min")
+					
+					sleep_time = random.randint(3600, 10800)
 					await asyncio.sleep(delay=60)
+					hours, minutes = divmod(sleep_time, 3600)
+					minutes //= 60
+					log.info(f"{self.session_name} | Sleep {int(hours)} hours {int(minutes)} minutes {log_end}")
 
 async def run_claimer(tg_client: Client, proxy: str | None):
 	try:
