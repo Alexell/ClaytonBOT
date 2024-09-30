@@ -251,7 +251,6 @@ class Claimer:
 			await asyncio.sleep(delay=3)
 
 	async def run(self, proxy: str | None) -> None:
-		access_token_created_time = 0
 		claim_time = 0
 
 		proxy_conn = ProxyConnector().from_url(proxy) if proxy else None
@@ -259,12 +258,9 @@ class Claimer:
 		async with aiohttp.ClientSession(headers=headers, connector=proxy_conn) as http_client:
 			while True:
 				try:
-					if time() - access_token_created_time >= 3600:
-						tg_web_data = await self.get_tg_web_data(proxy=proxy)
-						http_client.headers["Init-Data"] = tg_web_data
-						headers["Init-Data"] = tg_web_data
-						access_token_created_time = time()
-
+					tg_web_data = await self.get_tg_web_data(proxy=proxy)
+					http_client.headers["Init-Data"] = tg_web_data
+					headers["Init-Data"] = tg_web_data
 					mining_data = await self.get_mining_data(http_client=http_client)
 					tokens = int(mining_data['user']['tokens'])
 					multiplier = mining_data['user']['multiplier']
