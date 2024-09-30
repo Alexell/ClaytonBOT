@@ -100,7 +100,7 @@ class Claimer:
 			await asyncio.sleep(delay=3)
 			return {}
 	
-	async def perform_game(self, http_client: aiohttp.ClientSession) -> None:
+	async def perform_game(self, http_client: aiohttp.ClientSession, multiplier: int) -> None:
 		# Start a new '1024' game
 		try:
 			response = await http_client.post('https://tonclayton.fun/api/game/start')
@@ -133,7 +133,7 @@ class Claimer:
 				if i < tiles_count: await asyncio.sleep(interval)
 
 			# End the game after reaching 1024
-			payload = {"multiplier": 1}
+			payload = {"multiplier": multiplier}
 			response = await http_client.post('https://tonclayton.fun/api/game/over', json=payload)
 			response.raise_for_status()
 			response_json = await response.json()
@@ -149,7 +149,7 @@ class Claimer:
 			logger.error(f"{self.session_name} | Error during game play: {error}")
 			return
 
-	async def perform_stack(self, http_client: aiohttp.ClientSession) -> None:
+	async def perform_stack(self, http_client: aiohttp.ClientSession, multiplier: int) -> None:
 		# Start a new 'Stack' game
 		try:
 			response = await http_client.post('https://tonclayton.fun/api/stack/start-game')
@@ -178,7 +178,7 @@ class Claimer:
 				await asyncio.sleep(interval)
 			
 			score += random.randint(2, 8)
-			payload = {"score": score, "multiplier": 1}
+			payload = {"score": score, "multiplier": multiplier}
 			response = await http_client.post('https://tonclayton.fun/api/stack/end-game', json=payload)
 			response.raise_for_status()
 			response_json = await response.json()
@@ -229,9 +229,9 @@ class Claimer:
 						while daily_attempts > 0:
 							game = random.choice(games)
 							if game == '1024':
-								await self.perform_game(http_client=http_client)
+								await self.perform_game(http_client=http_client, multiplier=mining_data['multiplier'])
 							else:
-								await self.perform_stack(http_client=http_client)
+								await self.perform_stack(http_client=http_client, multiplier=mining_data['multiplier'])
 							daily_attempts -= 1
 							await asyncio.sleep(random.randint(10, 15))  # Sleep between games
 						continue
@@ -276,7 +276,7 @@ class Claimer:
 					await asyncio.sleep(delay=60)
 					hours, minutes = divmod(sleep_time, 3600)
 					minutes //= 60
-					log.info(f"{self.session_name} | Sleep {int(hours)} hours {int(minutes)} minutes {log_end}")
+					logger.info(f"{self.session_name} | Sleep {int(hours)} hours {int(minutes)} minutes {log_end}")
 
 async def run_claimer(tg_client: Client, proxy: str | None):
 	try:
