@@ -88,7 +88,7 @@ class Claimer:
 
 	async def get_mining_data(self, http_client: aiohttp.ClientSession) -> dict[str, str]:
 		try:
-			response = await http_client.post('https://tonclayton.fun/api/user/login')
+			response = await http_client.post('https://tonclayton.fun/api/user/auth')
 			response.raise_for_status()
 			
 			response_json = await response.json()
@@ -133,7 +133,8 @@ class Claimer:
 				if i < tiles_count: await asyncio.sleep(interval)
 
 			# End the game after reaching 1024
-			response = await http_client.post('https://tonclayton.fun/api/game/over')
+			payload = {"multiplier": 1}
+			response = await http_client.post('https://tonclayton.fun/api/game/over', json=payload)
 			response.raise_for_status()
 			response_json = await response.json()
 			earn = response_json.get('earn', 0)
@@ -151,7 +152,7 @@ class Claimer:
 	async def perform_stack(self, http_client: aiohttp.ClientSession) -> None:
 		# Start a new 'Stack' game
 		try:
-			response = await http_client.post('https://tonclayton.fun/api/stack/start')
+			response = await http_client.post('https://tonclayton.fun/api/stack/start-game')
 			response.raise_for_status()
 			logger.info(f"{self.session_name} | Game 'Stack' started")
 		except aiohttp.ClientResponseError as e:
@@ -171,14 +172,14 @@ class Claimer:
 			while score < max_score and (asyncio.get_event_loop().time() < end_time - 5):
 				score += 10
 				payload = {"score": score}
-				response = await http_client.post('https://tonclayton.fun/api/stack/update', json=payload)
+				response = await http_client.post('https://tonclayton.fun/api/stack/update-game', json=payload)
 				response.raise_for_status()
 				logger.info(f"{self.session_name} | Successfully saved score: {score}")
 				await asyncio.sleep(interval)
 			
 			score += random.randint(2, 8)
-			payload = {"score": score}
-			response = await http_client.post('https://tonclayton.fun/api/stack/end', json=payload)
+			payload = {"score": score, "multiplier": 1}
+			response = await http_client.post('https://tonclayton.fun/api/stack/end-game', json=payload)
 			response.raise_for_status()
 			response_json = await response.json()
 			earn = response_json.get('earn', 0)
