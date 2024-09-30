@@ -276,7 +276,7 @@ class Claimer:
 					await asyncio.sleep(delay=60)
 					hours, minutes = divmod(sleep_time, 3600)
 					minutes //= 60
-					logger.info(f"{self.session_name} | Sleep {int(hours)} hours {int(minutes)} minutes {log_end}")
+					logger.info(f"{self.session_name} | Sleep {int(hours)} hours {int(minutes)} minutes")
 
 async def run_claimer(tg_client: Client, proxy: str | None):
 	try:
